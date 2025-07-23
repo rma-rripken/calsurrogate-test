@@ -234,7 +234,7 @@ public class SalinitySurrogateSetup {
 		String[] tensorNames = { "serving_default_northern_flow:0",
 				"serving_default_exports:0",
 				"serving_default_sjr_flow:0",
-				"serving_default_cu_flow:0",
+				"serving_default_cu_delta:0",
 				"serving_default_sf_tidal_energy:0",
 				"serving_default_sf_tidal_filter:0",
 				"serving_default_dcc:0",

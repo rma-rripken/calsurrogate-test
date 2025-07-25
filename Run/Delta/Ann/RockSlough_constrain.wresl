@@ -5,3 +5,6 @@ goal meetRS {
     rhs RS_a0_sv
     lhs<rhs penalty 0}
 }
+
+define RS_EC_slack {std kind 'SALINITY' units 'UMHOS/CM'}
+goal set_RS_lin_margin { RS_EC_slack = RS_a0_sv - RS_a1_sv*C_SACtot_ANN - RS_a2_sv*(EXP_TD + D408_P)}

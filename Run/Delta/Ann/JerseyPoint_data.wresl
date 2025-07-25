@@ -80,6 +80,38 @@ define JP_EC_STD_sv {value JP_EC_STD_lookup*1000.0}
 define JP_EC_STD {std kind 'SALINITY' units 'UMHOS/CM'}
 goal JPECstandout {JP_EC_STD = JP_EC_STD_sv}
 
+
+!************ ea: this is new, anticipates next standard
+! define the EC standard
+define JP_EC_STD_next_lookup_orig {      
+  case NextIsAprToAug {
+    condition  nextwatermonth >=Oct .and. nextwatermonth <=Jan .or. nextwatermonth >=APR .and. nextwatermonth <=Sep
+    select            ECstandard
+    from              salinity_std_jpt_new
+    where             month=nextwatermonth,wyt_SAC=wyt_ann}
+  case NoStandard {
+    condition         always
+    value             99.0}
+}
+define JP_EC_STD_next_lookup {      
+    case   tucp_adjust {
+       condition tucp_trigger == 1
+       value JP_EC_STD_next_lookup_orig*JP_wq_CritRelaxFac}
+    case Otherwise {
+       condition   always
+       value        JP_EC_STD_next_lookup_orig}
+}
+
+define JP_EC_std_next_sv {value JP_EC_STD_next_lookup*1000.0}
+define JP_EC_std_next {std kind 'SALINITY' units 'UMHOS/CM'}
+goal JPECNext {JP_EC_std_next = JP_EC_std_next_sv}
+
+
+
+
+
+
+
 !****************************************************************************************
 !get parameters for constraint
 
@@ -110,8 +142,9 @@ define JP_a0_sv {
   case HighFlow{
   	condition (SAC_nominal - EXP_nominal > 15000) .and. (SAC_TOT(-1) - EXP_tot(-1) > 15000)
     value 0.0}	
-  case control{                  
-	condition month >=Oct .and. month <=Jan .or. month >=APR .and. month <=Sep
+  case control{ 
+  	! Shut down for < 10000 because no genuine standard in this range                  
+    condition (month >=Oct .and. month <=Jan .or. (month >=APR .and. month <=Sep)) .and. JP_EC_STD_sv < 10000.
     value  surrogateECLinearize(Sac_Tot(-1:-4), Sac_nominal,
                     EXP_tot(-1:-4), EXP_nominal,
                     C_SJR070(-1:-4), SJR_ann_est,
@@ -129,8 +162,8 @@ define JP_a1_sv {
   	condition (SAC_nominal - EXP_nominal > 15000) .and. (SAC_TOT(-1) - EXP_tot(-1) > 15000)
     value -1.0}	
   case control{
-    !condition month >=Oct .and. month <=Jan .or. month >=APR .and. month <=Sep
-    condition month >=Oct .and. month <=Jan .or. month >=APR .and. month <=Sep
+    ! Shut down for < 10000 because no genuine standard in this range
+    condition (month >=Oct .and. month <=Jan .or. (month >=APR .and. month <=Sep)) .and. JP_EC_STD_sv < 10000.
     value  surrogateECLinearize(Sac_Tot(-1:-4), Sac_nominal,
                     EXP_tot(-1:-4), Exp_nominal,
                     C_SJR070(-1:-4), SJR_ann_est,
@@ -148,7 +181,7 @@ define JP_a2_sv {
   	condition (SAC_nominal - EXP_nominal > 15000) .and. (SAC_TOT(-1) - EXP_tot(-1) > 15000)
     value 1.0}	
   case control{
-    condition month >=Oct .and. month <=Jan .or. month >=APR .and. month <=Sep
+    condition (month >=Oct .and. month <=Jan .or. (month >=APR .and. month <=Sep)) .and. JP_EC_STD_sv < 10000.
     value  surrogateECLinearize(Sac_Tot(-1:-4), Sac_nominal,
                     EXP_tot(-1:-4), Exp_nominal,
                     C_SJR070(-1:-4), SJR_ann_est,
@@ -179,6 +212,66 @@ define JP_b_sv {
 		value JP_a0_sv/JP_a2_sv
 	}
 }
+
+
+
+
+!********************* ea: This is new. Soft constraint on not being close to next months standard in final week of this month
+define JP_a0f_sv {
+  case HighFlow{
+  	condition (SAC_nominal - EXP_nominal > 20000) .and. (SAC_TOT(-1) - EXP_tot(-1) > 20000)
+    value 0.0}		
+  case control{                  
+    condition (nextwatermonth >=Oct .and. nextwatermonth <=Jan .or. (nextwatermonth >=APR .and. nextwatermonth <=Sep)) .and. JP_EC_STD_next_sv < 10000.
+    value  surrogateECLinearize(Sac_Tot(-1:-4), Sac_nominal,
+                    EXP_tot(-1:-4), EXP_nominal,
+                    C_SJR070(-1:-4), SJR_ann_est,
+                    DXC(-1:-4), DXC_est,
+                    net_DICU(-1:-4), net_delta_cu,
+                    SMSCG_OP(-1:-4), SMSCG_OPSV,
+                    JP_EC_std_next_sv, int(JP), 0,  int(ave_last_7days), calmonth, calyear)}
+  case other {
+    condition  always
+    value 0.}
+}
+
+define JP_a1f_sv {
+  case HighFlow{
+  	condition (SAC_nominal - EXP_nominal > 20000) .and. (SAC_TOT(-1) - EXP_tot(-1) > 20000)
+    value -1.0}		
+  case control{
+    condition (nextwatermonth >=Oct .and. nextwatermonth <=Jan .or. (nextwatermonth >=APR .and. nextwatermonth <=Sep)) .and. JP_EC_STD_next_sv < 10000.
+    value  surrogateECLinearize(Sac_Tot(-1:-4), Sac_nominal,
+                    EXP_tot(-1:-4), Exp_nominal,
+                    C_SJR070(-1:-4), SJR_ann_est,
+                    DXC(-1:-4), DXC_est,
+                    net_DICU(-1:-4), net_delta_cu,
+                    SMSCG_OP(-1:-4), SMSCG_OPSV,
+                    JP_EC_std_next_sv, int(JP), 1,  int(ave_last_7days), calmonth, calyear)}
+  case other{
+    condition  always
+    value -1.}
+}
+
+define JP_a2f_sv {
+  case HighFlow{
+  	condition (SAC_nominal - EXP_nominal > 20000) .and. (SAC_TOT(-1) - EXP_tot(-1) > 20000)
+    value 1.0}		
+  case control{
+    condition (nextwatermonth >=Oct .and. nextwatermonth <=Jan .or. (nextwatermonth >=APR .and. nextwatermonth <=Sep)) .and. JP_EC_STD_next_sv < 10000.
+    value  surrogateECLinearize(Sac_Tot(-1:-4), Sac_nominal,
+                    EXP_tot(-1:-4), Exp_nominal,
+                    C_SJR070(-1:-4), SJR_ann_est,
+                    DXC(-1:-4), DXC_est,
+                    net_DICU(-1:-4), net_delta_cu,
+                    SMSCG_OP(-1:-4), SMSCG_OPSV,
+                    JP_EC_std_next_sv, int(JP), 2, int(ave_last_7days), calmonth, calyear)}
+  case other {
+    condition  always
+    value 1.}
+}
+! *********************************
+
 
 define JP_m_sv {
   case noControl {

@@ -75,6 +75,36 @@ define EM_EC_std_sv {value EM_EC_STD_lookup*1000.0}
 define EM_EC_STD {std kind 'SALINITY' units 'UMHOS/CM'}
 goal EMECstandout {EM_EC_std = EM_EC_std_sv}
 
+
+!************ ea: this is new, anticipates next standard
+
+! define the EC standard
+define EM_EC_STD_next_lookup_orig {      
+  case NextIsAprToAug {
+    condition         month >=MAR .and. month <=JUL
+    select            ECstandard
+    from              salinity_std_emt_new
+    where             month=(month+1),wyt_SAC=wyt_ann}
+  case NoStandard {
+    condition         always
+    value             99.0}
+}
+define EM_EC_STD_next_lookup {      
+    case   tucp_adjust {
+       condition tucp_trigger == 1
+       value EM_EC_STD_next_lookup_orig*EM_wq_CritRelaxFac}
+    case Otherwise {
+       condition   always
+       value        EM_EC_STD_next_lookup_orig}
+}
+
+define EM_EC_std_next_sv {value EM_EC_STD_next_lookup*1000.0}
+define EM_EC_std_next {std kind 'SALINITY' units 'UMHOS/CM'}
+goal EMECNext {EM_EC_std_next = EM_EC_std_next_sv}
+
+
+
+
 !*************************************************************************************************************
 
 define EM_a0_sv {
@@ -82,7 +112,7 @@ define EM_a0_sv {
   	condition (SAC_nominal - EXP_nominal > 20000) .and. (SAC_TOT(-1) - EXP_tot(-1) > 20000)
     value 0.0}		
   case control{                  
-	condition month >= Apr .and. month <= Aug 
+	condition (month >= Apr .and. month <= Aug) .and. EM_EC_STD_sv<10000. 
     value  surrogateECLinearize(Sac_Tot(-1:-4), Sac_nominal,
                     EXP_tot(-1:-4), EXP_nominal,
                     C_SJR070(-1:-4), SJR_ann_est,
@@ -100,7 +130,7 @@ define EM_a1_sv {
   	condition (SAC_nominal - EXP_nominal > 20000) .and. (SAC_TOT(-1) - EXP_tot(-1) > 20000)
     value -1.0}		
   case control{
-    condition month >= Apr .and. month <= Aug 
+	condition (month >= Apr .and. month <= Aug) .and. EM_EC_STD_sv<10000.  
     value  surrogateECLinearize(Sac_Tot(-1:-4), Sac_nominal,
                     EXP_tot(-1:-4), Exp_nominal,
                     C_SJR070(-1:-4), SJR_ann_est,
@@ -118,7 +148,7 @@ define EM_a2_sv {
   	condition (SAC_nominal - EXP_nominal > 20000) .and. (SAC_TOT(-1) - EXP_tot(-1) > 20000)
     value 1.0}		
   case control{
-    condition month >= Apr .and. month <= Aug
+	condition (month >= Apr .and. month <= Aug) .and. EM_EC_STD_sv<10000. 
     value  surrogateECLinearize(Sac_Tot(-1:-4), Sac_nominal,
                     EXP_tot(-1:-4), Exp_nominal,
                     C_SJR070(-1:-4), SJR_ann_est,
@@ -130,6 +160,68 @@ define EM_a2_sv {
     condition  always
     value 1.}
 }
+
+!********************* ea: This is new. Soft constraint on not being close to next months standard in final week of this month
+define EM_a0f_sv {
+  case HighFlow{
+  	condition (SAC_nominal - EXP_nominal > 20000) .and. (SAC_TOT(-1) - EXP_tot(-1) > 20000)
+    value 0.0}		
+  case control{                  
+	condition (nextwatermonth >= Apr .and. nextwatermonth <= Aug) .and. EM_EC_STD_next_sv<10000. 
+    value  surrogateECLinearize(Sac_Tot(-1:-4), Sac_nominal,
+                    EXP_tot(-1:-4), EXP_nominal,
+                    C_SJR070(-1:-4), SJR_ann_est,
+                    DXC(-1:-4), DXC_est,
+                    net_DICU(-1:-4), net_delta_cu,
+                    SMSCG_OP(-1:-4), SMSCG_OPSV,
+                    EM_EC_std_next_sv, int(EM), 0,  int(ave_last_7days), calmonth, calyear)}
+  case other {
+    condition  always
+    value 0.}
+}
+
+define EM_a1f_sv {
+  case HighFlow{
+  	condition (SAC_nominal - EXP_nominal > 20000) .and. (SAC_TOT(-1) - EXP_tot(-1) > 20000)
+    value -1.0}		
+  case control{
+    condition month >= Apr .and. month <= Aug 
+    value  surrogateECLinearize(Sac_Tot(-1:-4), Sac_nominal,
+                    EXP_tot(-1:-4), Exp_nominal,
+                    C_SJR070(-1:-4), SJR_ann_est,
+                    DXC(-1:-4), DXC_est,
+                    net_DICU(-1:-4), net_delta_cu,
+                    SMSCG_OP(-1:-4), SMSCG_OPSV,
+                    EM_EC_std_next_sv, int(EM), 1,  int(ave_last_7days), calmonth, calyear)}
+  case other{
+    condition  always
+    value -1.}
+}
+
+define EM_a2f_sv {
+  case HighFlow{
+  	condition (SAC_nominal - EXP_nominal > 20000) .and. (SAC_TOT(-1) - EXP_tot(-1) > 20000)
+    value 1.0}		
+  case control{
+	condition (nextwatermonth >= Apr .and. nextwatermonth <= Aug) .and. EM_EC_STD_next_sv<10000. 
+    value  surrogateECLinearize(Sac_Tot(-1:-4), Sac_nominal,
+                    EXP_tot(-1:-4), Exp_nominal,
+                    C_SJR070(-1:-4), SJR_ann_est,
+                    DXC(-1:-4), DXC_est,
+                    net_DICU(-1:-4), net_delta_cu,
+                    SMSCG_OP(-1:-4), SMSCG_OPSV,
+                    EM_EC_std_next_sv, int(EM), 2, int(ave_last_7days), calmonth, calyear)}
+  case other {
+    condition  always
+    value 1.}
+}
+
+
+
+!*********************************************************
+
+
+
 
 define EM_b_sv {
 	case noControl{

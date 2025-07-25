@@ -1,4 +1,18 @@
 
+! Definition having to do with water year
+define nextwatermonth {
+  case wrapToFirst {
+    condition month == 12
+    value 1
+  }
+  case otherwise {
+    condition always
+    value month + 1
+  }
+}
+
+
+
 ! Definitions of current/lagged calendar year and month
 ! The current calendar year is calyear 
 ! The current calendar month is calmonth

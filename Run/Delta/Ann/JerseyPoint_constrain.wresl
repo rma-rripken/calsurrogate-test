@@ -6,3 +6,25 @@ goal meetJP {
     lhs<rhs penalty 0}
 }
 
+define JP_EC_slack {std kind 'SALINITY' units 'UMHOS/CM'}
+goal set_JP_EC_slack { 
+	JP_EC_slack = JP_a0_sv - JP_a1_sv*C_SACtot_ANN - JP_a2_sv*(EXP_TD + D408_P)
+}
+
+! **** ea: this is new, and is an effort to help with oscillation by placing a soft constraint 
+! encouraging early compliance with next month's standard in the final week of this period. Since
+! the objectives are based on running averages this is consistent in spirit with what will be required on
+! the first of the month
+goal anticipateJP {
+  lhs JP_a1f_sv*C_SACtot_ANN + JP_a2f_sv*(EXP_TD + D408_P)  ! EXP_TD + D408_P
+  case ControlTightening {
+    condition  ((nextwatermonth >=Oct .and. nextwatermonth <=Jan) .or. nextwatermonth >=APR) .and. JP_EC_STD_sv<2000. ! Staggered by a month 
+    rhs JP_a0f_sv
+    lhs<rhs penalty 0.
+    lhs>rhs penalty 8000. }
+  case NonControlSeason {
+    condition always
+    rhs 99999999. 
+    lhs<rhs penalty 0.
+    lhs>rhs penalty 0.}
+}
